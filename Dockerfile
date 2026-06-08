@@ -19,7 +19,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # کپی فایل اصلی ربات
-COPY selfbot.py .
+COPY bot.py .
 
 # ایجاد پوشه های لازم
 RUN mkdir -p user_sessions media_storage reported_media
@@ -28,4 +28,4 @@ RUN mkdir -p user_sessions media_storage reported_media
 EXPOSE 10000
 
 # اجرای ربات
-CMD ["python", "selfbot.py"]
+CMD ["python", "bot.py"]
