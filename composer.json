@@ -3,6 +3,11 @@
     "description": "Telegram VPN Bot for lchiikVPN",
     "type": "project",
     "require": {
-        "php": ">=7.4"
+        "php": ">=8.0"
+    },
+    "config": {
+        "platform": {
+            "php": "8.2"
+        }
     }
 }
