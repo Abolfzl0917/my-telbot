@@ -1,4 +1,16 @@
 <?php
+// ============================================
+// ✅ پاسخ به Healthcheck برای Railway
+// ============================================
+if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+    http_response_code(200);
+    echo "OK";
+    exit;
+}
+
+// ============================================
+// تنظیمات اولیه
+// ============================================
 error_reporting(E_ALL);
 ini_set('display_errors', 0);
 ini_set('log_errors', 1);
@@ -28,11 +40,6 @@ function bot($method, $datas = []) {
 // ============ دریافت آپدیت ============
 $update = json_decode(file_get_contents('php://input'));
 if (!isset($update)) {
-    // برای تست webhook
-    if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-        echo "✅ Bot is running!";
-        exit;
-    }
     exit;
 }
 
@@ -66,7 +73,11 @@ if (!file_exists($db_file)) {
         'configs' => [],
         'channels' => ['lchiik'],
         'status' => 'on',
-        'orders' => []
+        'orders' => [],
+        'settings' => [
+            'card_number' => '5859471029562323',
+            'card_holder' => 'عماد صادقی'
+        ]
     ];
     file_put_contents($db_file, json_encode($init, JSON_PRETTY_PRINT));
 }
@@ -79,7 +90,11 @@ if ($db === null) {
         'configs' => [],
         'channels' => ['lchiik'],
         'status' => 'on',
-        'orders' => []
+        'orders' => [],
+        'settings' => [
+            'card_number' => '5859471029562323',
+            'card_holder' => 'عماد صادقی'
+        ]
     ];
     file_put_contents($db_file, json_encode($db, JSON_PRETTY_PRINT));
 }
@@ -247,6 +262,11 @@ if (isset($text)) {
         $wallet = number_format($db['users'][$from_id]['wallet']);
         $db['users'][$from_id]['step'] = 'charge_amount';
         file_put_contents($db_file, json_encode($db, JSON_PRETTY_PRINT));
+        
+        // دریافت شماره کارت از تنظیمات
+        $card_number = isset($db['settings']['card_number']) ? $db['settings']['card_number'] : '5859471029562323';
+        $card_holder = isset($db['settings']['card_holder']) ? $db['settings']['card_holder'] : 'عماد صادقی';
+        
         bot('sendMessage', [
             'chat_id' => $chat_id,
             'text' => "💳 **موجودی فعلی شما:** $wallet ریال\n\n💰 لطفا مبلغی که می‌خواهید به موجودی خود اضافه کنید را به **ریال** و به صورت عدد لاتین ارسال کنید:",
@@ -290,7 +310,8 @@ if (isset($text)) {
                 [['text' => "📊 آمار و وضعیت", 'callback_data' => "p_stats"], ['text' => "💡 تغییر وضعیت ربات", 'callback_data' => "p_toggle"]],
                 [['text' => "➕ افزودن کانال اجباری", 'callback_data' => "p_addch"], ['text' => "❌ حذف کانال اجباری", 'callback_data' => "p_delch"]],
                 [['text' => "➕ ساخت سرویس جدید", 'callback_data' => "p_addsrv"], ['text' => "⚙️ مدیریت سرویس‌ها", 'callback_data' => "p_managesrv"]],
-                [['text' => "📢 ارسال پیام همگانی", 'callback_data' => "p_sendall"]]
+                [['text' => "📢 ارسال پیام همگانی", 'callback_data' => "p_sendall"]],
+                [['text' => "💳 تنظیمات پرداخت", 'callback_data' => "p_payment_settings"]]
             ]
         ]);
         bot('sendMessage', [
@@ -327,11 +348,14 @@ if (isset($text)) {
             file_put_contents($db_file, json_encode($db, JSON_PRETTY_PRINT));
             
             $f_amount = number_format($text);
+            $card_number = isset($db['settings']['card_number']) ? $db['settings']['card_number'] : '5859471029562323';
+            $card_holder = isset($db['settings']['card_holder']) ? $db['settings']['card_holder'] : 'عماد صادقی';
+            
             $card_msg = "💳 **درخواست افزایش موجودی**\n\n"
                       . "💵 مبلغ: $f_amount ریال\n\n"
                       . "لطفا مبلغ فوق را به شماره کارت زیر واریز نمایید:\n\n"
-                      . "✨ `5859471029562323` ✨\n"
-                      . "👤 **عماد صادقی**\n\n"
+                      . "✨ `$card_number` ✨\n"
+                      . "👤 **$card_holder**\n\n"
                       . "⚠️ پس از واریز، دکمه **«تایید پرداخت»** را بزنید و در مرحله بعد عکس رسید را بفرستید.";
             
             bot('sendMessage', [
@@ -346,7 +370,6 @@ if (isset($text)) {
         
         // مرحله پشتیبانی
         elseif ($step == 'support') {
-            // ارسال به ادمین
             bot('sendMessage', [
                 'chat_id' => ADMIN_ID,
                 'text' => "📬 **پیام جدید پشتیبانی**\n👤 فرستنده: $from_id\n👤 نام: $first_name\n👤 یوزرنیم: @$username\n\n💬 متن پیام:\n$text\n\n📥 جهت پاسخ دادن روی دستور زیر کلیک کنید:\n/reply_$from_id"
@@ -377,8 +400,24 @@ if (isset($text)) {
         
         // ===== مدیریت ادمین =====
         elseif ($from_id == ADMIN_ID) {
+            // تنظیم شماره کارت
+            if ($step == 'p_set_card') {
+                $db['settings']['card_number'] = trim($text);
+                $db['users'][$from_id]['step'] = 'p_set_card_holder';
+                file_put_contents($db_file, json_encode($db, JSON_PRETTY_PRINT));
+                bot('sendMessage', ['chat_id' => $chat_id, 'text' => "✅ شماره کارت ذخیره شد.\n📝 حالا نام صاحب کارت را وارد کنید:"]);
+            }
+            
+            // تنظیم نام صاحب کارت
+            elseif ($step == 'p_set_card_holder') {
+                $db['settings']['card_holder'] = trim($text);
+                $db['users'][$from_id]['step'] = 'none';
+                file_put_contents($db_file, json_encode($db, JSON_PRETTY_PRINT));
+                bot('sendMessage', ['chat_id' => $chat_id, 'text' => "✅ اطلاعات پرداخت با موفقیت به‌روزرسانی شد!\n\n💳 شماره کارت: " . $db['settings']['card_number'] . "\n👤 صاحب کارت: " . $db['settings']['card_holder']]);
+            }
+            
             // افزودن کانال
-            if ($step == 'p_addch_step') {
+            elseif ($step == 'p_addch_step') {
                 $ch = str_replace('@', '', trim($text));
                 if (!in_array($ch, $db['channels'])) {
                     $db['channels'][] = $ch;
@@ -453,7 +492,6 @@ if (isset($text)) {
                     } else {
                         $failed++;
                     }
-                    // جلوگیری از Rate Limit
                     usleep(50000);
                 }
                 bot('sendMessage', ['chat_id' => $chat_id, 'text' => "✅ پیام همگانی ارسال شد.\n✅ موفق: $success\n❌ ناموفق: $failed"]);
@@ -584,7 +622,6 @@ if (isset($data)) {
             exit;
         }
         
-        // گرفتن یک کانفیگ و حذف آن از لیست
         $config = array_shift($db['configs'][$srv_id]);
         if (empty($db['configs'][$srv_id])) {
             unset($db['configs'][$srv_id]);
@@ -644,6 +681,62 @@ if (isset($data)) {
                 'callback_query_id' => $callback_query->id,
                 'text' => "وضعیت ربات تغییر کرد به: " . ($db['status'] == 'on' ? '🟢 روشن' : '🔴 خاموش'),
                 'show_alert' => true
+            ]);
+        }
+        
+        // تنظیمات پرداخت
+        elseif ($data == 'p_payment_settings') {
+            $card_number = isset($db['settings']['card_number']) ? $db['settings']['card_number'] : '5859471029562323';
+            $card_holder = isset($db['settings']['card_holder']) ? $db['settings']['card_holder'] : 'عماد صادقی';
+            
+            $text_settings = "💳 **تنظیمات پرداخت**\n\n"
+                           . "🏦 شماره کارت: `$card_number`\n"
+                           . "👤 صاحب کارت: $card_holder\n\n"
+                           . "برای تغییر اطلاعات، دکمه زیر را بزنید:";
+            
+            $inline = [
+                [['text' => "✏️ تغییر شماره کارت", 'callback_data' => "p_edit_card"]],
+                [['text' => "🔙 بازگشت به پنل", 'callback_data' => "p_back_to_panel"]]
+            ];
+            
+            bot('sendMessage', [
+                'chat_id' => $chat_id,
+                'text' => $text_settings,
+                'parse_mode' => 'Markdown',
+                'reply_markup' => json_encode(['inline_keyboard' => $inline])
+            ]);
+        }
+        
+        // ویرایش شماره کارت
+        elseif ($data == 'p_edit_card') {
+            $db['users'][$from_id]['step'] = 'p_set_card';
+            file_put_contents($db_file, json_encode($db, JSON_PRETTY_PRINT));
+            bot('sendMessage', [
+                'chat_id' => $chat_id,
+                'text' => "✏️ شماره کارت جدید را وارد کنید (۱۶ رقمی):"
+            ]);
+        }
+        
+        // بازگشت به پنل
+        elseif ($data == 'p_back_to_panel') {
+            $ucount = count($db['users']);
+            $scount = count($db['services']);
+            $st = $db['status'] == 'on' ? '🟢 روشن' : '🔴 خاموش';
+            $p_text = "⚙️ **پنل مدیریت ربات lchiikVPN**\n\n👥 تعداد کاربران: $ucount\n📦 تعداد سرویس‌ها: $scount\nوضعیت ربات: $st";
+            $p_keyboard = json_encode([
+                'inline_keyboard' => [
+                    [['text' => "📊 آمار و وضعیت", 'callback_data' => "p_stats"], ['text' => "💡 تغییر وضعیت ربات", 'callback_data' => "p_toggle"]],
+                    [['text' => "➕ افزودن کانال اجباری", 'callback_data' => "p_addch"], ['text' => "❌ حذف کانال اجباری", 'callback_data' => "p_delch"]],
+                    [['text' => "➕ ساخت سرویس جدید", 'callback_data' => "p_addsrv"], ['text' => "⚙️ مدیریت سرویس‌ها", 'callback_data' => "p_managesrv"]],
+                    [['text' => "📢 ارسال پیام همگانی", 'callback_data' => "p_sendall"]],
+                    [['text' => "💳 تنظیمات پرداخت", 'callback_data' => "p_payment_settings"]]
+                ]
+            ]);
+            bot('sendMessage', [
+                'chat_id' => $chat_id,
+                'text' => $p_text,
+                'parse_mode' => 'Markdown',
+                'reply_markup' => $p_keyboard
             ]);
         }
         
@@ -750,17 +843,6 @@ if (isset($data)) {
             bot('sendMessage', ['chat_id' => $chat_id, 'text' => "📢 متن پیام همگانی خود را ارسال کنید:"]);
         }
     }
-}
-
-// ============ لاگ برای دیباگ ============
-if (isset($update)) {
-    $log_data = [
-        'time' => date('Y-m-d H:i:s'),
-        'from_id' => $from_id,
-        'text' => isset($text) ? $text : null,
-        'data' => isset($data) ? $data : null
-    ];
-    file_put_contents('bot.log', json_encode($log_data) . PHP_EOL, FILE_APPEND);
 }
 
 echo "OK";
