@@ -1,8 +1,0 @@
-python-telegram-bot==20.7
-telethon==1.36.0
-flask==3.0.2
-pytz==2024.1
-jdatetime==5.0.0
-hijridate==2.6.0
-requests==2.31.0
-deep-translator==1.11.4

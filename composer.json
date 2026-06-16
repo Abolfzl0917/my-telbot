@@ -1,0 +1,8 @@
+{
+    "name": "lchiik/vpn-bot",
+    "description": "Telegram VPN Bot for lchiikVPN",
+    "type": "project",
+    "require": {
+        "php": ">=7.4"
+    }
+}
