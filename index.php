@@ -16,9 +16,9 @@ ini_set('display_errors', 0);
 ini_set('log_errors', 1);
 ini_set('error_log', 'php-error.log');
 
-// ============ تنظیمات اولیه ============
-define('API_KEY', getenv('API_KEY') ?: '8262116870:AAESTHjD7Vhph5EGRhBqV_2lHpuQ5tI5LnQ');
-define('ADMIN_ID', getenv('ADMIN_ID') ?: 6443963679);
+// ============ تنظیمات از محیط (امن) ============
+define('API_KEY', getenv('API_KEY') ?: 'YOUR_BOT_TOKEN_HERE');
+define('ADMIN_ID', getenv('ADMIN_ID') ?: 123456789);
 
 // ============ تابع ارتباط با تلگرام ============
 function bot($method, $datas = []) {
@@ -263,7 +263,6 @@ if (isset($text)) {
         $db['users'][$from_id]['step'] = 'charge_amount';
         file_put_contents($db_file, json_encode($db, JSON_PRETTY_PRINT));
         
-        // دریافت شماره کارت از تنظیمات
         $card_number = isset($db['settings']['card_number']) ? $db['settings']['card_number'] : '5859471029562323';
         $card_holder = isset($db['settings']['card_holder']) ? $db['settings']['card_holder'] : 'عماد صادقی';
         
